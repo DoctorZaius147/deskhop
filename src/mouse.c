@@ -257,30 +257,39 @@ void do_screen_switch(device_t *state, int direction) {
     if (state->switch_lock || state->gaming_mode)
         return;
 
-    /* ignore top and bottem switches to match the default left/right linear configuration */
-    if (direction == TOP || direction == BOTTOM)
-        return;
-
-    /* We want to jump in the direction of the other computer */
-    if (output->pos != direction) {
-        if (output->screen_index == 1) { /* We are at the border -> switch outputs */
-            /* No switching allowed if mouse button is held. Should only apply to the border! */
-            if (state->mouse_buttons)
-                return;
-
-            switch_to_another_pc(state, output, 1 - state->active_output, direction);
+    if (state->active_output == OUTPUT_B) {
+        if (output->screen_index == 1) {
+            if (direction == BOTTOM)
+                switch_to_another_pc(state, output, OUTPUT_A, direction);
+            if (direction == LEFT)
+                switch_virtual_desktop(state, output, 2, direction);
         }
-        /* If here, this output has multiple desktops and we are not on the main one */
-        else
-            switch_virtual_desktop(state, output, output->screen_index - 1, direction);
+        else if (output->screen_index == 2) {
+            if (direction == RIGHT)
+                switch_virtual_desktop(state, output, 1, direction);
+            if (direction == LEFT)
+                switch_virtual_desktop(state, output, 3, direction);
+        }
+        else if (output->screen_index == 3) {
+            if (direction == RIGHT)
+                switch_virtual_desktop(state, output, 2, direction);
+        }
+            
     }
-
-    /* We want to jump away from the other computer, only possible if there is another screen to jump to */
-    else if (output->screen_index < output->screen_count)
-        switch_virtual_desktop(state, output, output->screen_index + 1, direction);
+    else { 
+        if (output->screen_index == 1) {
+            if (direction == TOP)
+                switch_to_another_pc(state, output, OUTPUT_B, direction);
+            if (direction == LEFT)
+                switch_virtual_desktop(state, output, 2, direction);
+        }
+       else if (output->screen_index == 2) {
+            if (direction == RIGHT)
+                switch_virtual_desktop(state, output, 1, direction);
+        }
+    }
 }
-
-static inline bool extract_value(bool uses_id, int32_t *dst, report_val_t *src, uint8_t *raw_report, int len) {
+inline void extract_value(bool uses_id, int32_t *dst, report_val_t *src, uint8_t *raw_report, int len) {
     /* If HID Report ID is used, the report is prefixed by the report ID so we have to move by 1 byte */
     if (uses_id && (*raw_report++ != src->report_id))
         return false;
