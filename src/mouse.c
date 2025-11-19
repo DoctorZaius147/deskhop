@@ -17,18 +17,12 @@
 #define ACCEL_POINTS 7
 
 /* Check if our upcoming mouse movement would result in having to switch outputs */
-enum screen_pos_e is_screen_switch_needed(int position_x, int offset_x, int position_y, int offset_y) {
-    if (position_x + offset_x < MIN_SCREEN_COORD - global_state.config.jump_threshold)
+enum screen_pos_e is_screen_switch_needed(int position, int offset) {
+    if (position + offset < MIN_SCREEN_COORD - global_state.config.jump_threshold)
         return LEFT;
 
-    if (position_x + offset_x > MAX_SCREEN_COORD + global_state.config.jump_threshold)
+    if (position + offset > MAX_SCREEN_COORD + global_state.config.jump_threshold)
         return RIGHT;
-
-    if (position_y + offset_y < MIN_SCREEN_COORD - global_state.config.jump_threshold)
-        return TOP;
-
-    if (position_y + offset_y > MAX_SCREEN_COORD + global_state.config.jump_threshold)
-        return BOTTOM;
 
     return NONE;
 }
@@ -115,7 +109,7 @@ enum screen_pos_e update_mouse_position(device_t *state, mouse_values_t *values)
     int offset_y = round(values->move_y * acceleration_factor * (current->speed_y >> reduce_speed));
 
     /* Determine if our upcoming movement would stay within the screen */
-    enum screen_pos_e switch_direction = is_screen_switch_needed(state->pointer_x, offset_x, state->pointer_y, offset_y);
+    enum screen_pos_e switch_direction = is_screen_switch_needed(state->pointer_x, offset_x);
 
     /* Update movement */
     state->pointer_x = move_and_keep_on_screen(state->pointer_x, offset_x);
@@ -180,15 +174,8 @@ void switch_to_another_pc(
 
     output_mouse_report(&hidden_pointer, state);
     set_active_output(state, output_to);
-
-    if (direction == LEFT || direction == RIGHT) {
-        state->pointer_x = (direction == LEFT) ? MAX_SCREEN_COORD : MIN_SCREEN_COORD;
-        state->pointer_y = scale_y_coordinate(output->number, 1 - output->number, state);
-    }
-    else {
-        state->pointer_y = (direction == TOP) ? MAX_SCREEN_COORD : MIN_SCREEN_COORD;
-        /* x scaling not currently supported */
-    }
+    state->pointer_x = (direction == LEFT) ? MAX_SCREEN_COORD : MIN_SCREEN_COORD;
+    state->pointer_y = scale_y_coordinate(output->number, 1 - output->number, state);
 }
 
 void switch_virtual_desktop_macos(device_t *state, int direction) {
@@ -257,39 +244,26 @@ void do_screen_switch(device_t *state, int direction) {
     if (state->switch_lock || state->gaming_mode)
         return;
 
-    if (state->active_output == OUTPUT_B) {
-        if (output->screen_index == 1) {
-            if (direction == BOTTOM)
-                switch_to_another_pc(state, output, OUTPUT_A, direction);
-            if (direction == LEFT)
-                switch_virtual_desktop(state, output, 2, direction);
+    /* We want to jump in the direction of the other computer */
+    if (output->pos != direction) {
+        if (output->screen_index == 1) { /* We are at the border -> switch outputs */
+            /* No switching allowed if mouse button is held. Should only apply to the border! */
+            if (state->mouse_buttons)
+                return;
+
+            switch_to_another_pc(state, output, 1 - state->active_output, direction);
         }
-        else if (output->screen_index == 2) {
-            if (direction == RIGHT)
-                switch_virtual_desktop(state, output, 1, direction);
-            if (direction == LEFT)
-                switch_virtual_desktop(state, output, 3, direction);
-        }
-        else if (output->screen_index == 3) {
-            if (direction == RIGHT)
-                switch_virtual_desktop(state, output, 2, direction);
-        }
-            
+        /* If here, this output has multiple desktops and we are not on the main one */
+        else
+            switch_virtual_desktop(state, output, output->screen_index - 1, direction);
     }
-    else { 
-        if (output->screen_index == 1) {
-            if (direction == TOP)
-                switch_to_another_pc(state, output, OUTPUT_B, direction);
-            if (direction == LEFT)
-                switch_virtual_desktop(state, output, 2, direction);
-        }
-       else if (output->screen_index == 2) {
-            if (direction == RIGHT)
-                switch_virtual_desktop(state, output, 1, direction);
-        }
-    }
+
+    /* We want to jump away from the other computer, only possible if there is another screen to jump to */
+    else if (output->screen_index < output->screen_count)
+        switch_virtual_desktop(state, output, output->screen_index + 1, direction);
 }
-inline void extract_value(bool uses_id, int32_t *dst, report_val_t *src, uint8_t *raw_report, int len) {
+
+static inline bool extract_value(bool uses_id, int32_t *dst, report_val_t *src, uint8_t *raw_report, int len) {
     /* If HID Report ID is used, the report is prefixed by the report ID so we have to move by 1 byte */
     if (uses_id && (*raw_report++ != src->report_id))
         return false;
