@@ -120,6 +120,8 @@ To make use of this feature, first set up the OS for each output in config (sinc
 
 If you're gaming, there is a chance your game might not work properly with absolute mouse mode. To address that issue, a **gaming mode** is introduced, toggled by ```LEFT CTRL + RIGHT SHIFT + G```. When in gaming mode, you are locked to the current screen and your mouse behaves like a standard relative mouse. This should also fix various virtual machine issues, currently unsupported operating systems etc.
 
+In this fork, **gaming mode is enabled on every boot** on both boards. Use ```LEFT CTRL + CAPS LOCK``` (the default output-switching hotkey) to switch computers while gaming mode is enabled. Toggle gaming mode off with ```LEFT CTRL + RIGHT SHIFT + G``` to restore the original horizontal edge switching; the custom vertical-screen layout has been removed.
+
 ### Screensaver
 
 Supposedly built in to prevent computer from entering standby, but truth be told - it is just fun to watch. **Off by default**, will make your mouse pointer bounce around the screen like a Pong ball. When enabled, it activates after a period of inactivity defined in user config header and automatically switches off as soon as you send any output towards that screen.
