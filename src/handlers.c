@@ -115,13 +115,24 @@ void mouse_zoom_hotkey_handler(device_t *state, hid_keyboard_report_t *report) {
     send_value(state->mouse_zoom, MOUSE_ZOOM_MSG);
 };
 
-/* When pressed, enables the screensaver on active output */
-void enable_screensaver_hotkey_handler(device_t *state, hid_keyboard_report_t *report) {
+/* When pressed, enables the pong screensaver on active output */
+void enable_screensaver_pong_hotkey_handler(device_t *state, hid_keyboard_report_t *report) {
     uint8_t desired_mode = state->config.output[BOARD_ROLE].screensaver.mode;
 
-    /* If the user explicitly asks for screensaver to be active, ignore config and turn it on */
-    if (desired_mode == DISABLED)
+    /* If the user explicitly asks for pong screensaver to be active, ignore config and turn it on */
+    if (desired_mode == DISABLED || desired_mode == JITTER)
         desired_mode = PONG;
+
+    _screensaver_set(state, desired_mode);
+}
+
+/* When pressed, enables the jitter screensaver on active output */
+void enable_screensaver_jitter_hotkey_handler(device_t *state, hid_keyboard_report_t *report) {
+    uint8_t desired_mode = state->config.output[BOARD_ROLE].screensaver.mode;
+
+    /* If the user explicitly asks for jitter screensaver to be active, ignore config and turn it on */
+    if (desired_mode == DISABLED || desired_mode == PONG)
+        desired_mode = JITTER;
 
     _screensaver_set(state, desired_mode);
 }
@@ -198,7 +209,7 @@ void handle_mouse_zoom_msg(uart_packet_t *packet, device_t *state) {
 /* Process request to update keyboard LEDs */
 void handle_set_report_msg(uart_packet_t *packet, device_t *state) {
     /* We got this via serial, so it's stored to the opposite of our board role */
-    state->keyboard_leds[OTHER_ROLE] = packet->data[0];
+    state->keyboard_leds_desired[OTHER_ROLE] = packet->data[0];
 
     /* If we have a keyboard we can control leds on, restore state if active */
     if (global_state.keyboard_connected && !CURRENT_BOARD_IS_ACTIVE_OUTPUT)
@@ -307,7 +318,7 @@ void handle_api_read_all_msg(uart_packet_t *packet, device_t *state) {
 void handle_request_byte_msg(uart_packet_t *packet, device_t *state) {
     uint32_t address = packet->data32[0];
 
-    if (address > STAGING_IMAGE_SIZE)
+    if (address >= STAGING_IMAGE_SIZE)
         return;
 
     /* Add requested data to bytes 4-7 in the packet and return it with a different type */

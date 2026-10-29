@@ -69,12 +69,21 @@ apt install \
     python3
 ```
 
-You should be able to build by running:
+This fork tracks upstream **v0.80** and enables gaming mode at startup. Use
+[Arm GNU Toolchain 12.3.Rel1](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads/12-3-rel1)
+(the x86_64 Linux `arm-none-eabi` archive on this machine). Its GCC 12.3 compiler
+produced a working firmware build; a GCC 16 build failed to start on hardware.
+Select the toolchain explicitly and use a fresh build directory rather than
+reusing a CMake cache configured with another compiler:
 
 ```shell
-cmake -S . -B build
-cmake --build build
+export PICO_TOOLCHAIN_PATH=/path/to/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
+cmake -S . -B build/gcc12 -DPICO_TOOLCHAIN_PATH="$PICO_TOOLCHAIN_PATH"
+cmake --build build/gcc12
 ```
+
+The firmware is `build/gcc12/deskhop.uf2`. The same image supports both Picos.
+Keep a copy of your previously working UF2 before upgrading.
 
 additionally, to rebuild web UI check webconfig/ and execute ```./render.py```, you'll need jinja2 installed.
 
@@ -97,6 +106,12 @@ Alternatively, you can use the [pre-built images](https://github.com/hrvach/desk
 _Note_ - This is not an actual generic USB drive, you can't use it to copy files to it.
 
 **Option 2** - Using the ROM bootloader - hold the on-board button while connecting each Pico and copy the uf2 to the flash drive that appears. Images later than 0.6 support holding the button without having to fiddle around the power supply, but the "hold button while plugging" should always work, regardless of device state.
+
+**Option 3** - CDC Flash Command (Debug builds only) - If the firmware was built with both `DH_DEBUG=ON` and `DH_DEBUG_CDC_FLASH=ON`, you can trigger bootloader mode via CDC serial command:
+```shell
+echo -n 'flash' > /dev/tty.usbmodem11104
+```
+This immediately resets the device into bootloader mode where it appears as "RPI-RP2" drive. This feature is intended for development workflows.
 
 ## Misc features
 
